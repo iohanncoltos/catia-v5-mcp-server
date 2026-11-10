@@ -1,8 +1,44 @@
 """File transfer tests run without CATIA or Windows COM."""
 import base64
 import hashlib
+import pytest
 
 from catia_mcp.tools.file_transfer import CHUNK_BYTES, FileTransferTools
+
+
+@pytest.mark.parametrize("content", [b"", b"x" * CHUNK_BYTES])
+def test_boundary_files(tmp_path, monkeypatch, content):
+    monkeypatch.setenv("CATIA_MCP_TRANSFER_DIR", str(tmp_path))
+    path = tmp_path / "boundary.CATPart"
+    path.write_bytes(content)
+    tools = FileTransferTools()
+    info = tools.execute("catia_get_file_info", {"file_path": str(path)})["data"]
+    assert info["total_chunks"] == 1
+    result = tools.execute("catia_download_file", {
+        "file_path": str(path), "expected_sha256": info["sha256"].upper(),
+    })
+    assert result["ok"]
+    assert base64.b64decode(result["data"]["content_base64"]) == content
+    assert not tools.execute("catia_download_file", {
+        "file_path": str(path), "expected_sha256": info["sha256"], "chunk_index": 1,
+    })["ok"]
+
+
+def test_unconfigured_root(tmp_path, monkeypatch):
+    monkeypatch.delenv("CATIA_MCP_TRANSFER_DIR", raising=False)
+    assert not FileTransferTools().execute("catia_get_file_info", {
+        "file_path": str(tmp_path / "sample.CATPart"),
+    })["ok"]
+
+
+def test_size_limit_is_enforced_during_read(tmp_path, monkeypatch):
+    from catia_mcp.tools import file_transfer
+
+    path = tmp_path / "large.CATPart"
+    path.write_bytes(b"12345")
+    monkeypatch.setattr(file_transfer, "MAX_FILE_BYTES", 4)
+    with pytest.raises(ValueError, match="limit"):
+        FileTransferTools._snapshot(path)
 
 
 def test_transfer_roundtrip(tmp_path, monkeypatch):
