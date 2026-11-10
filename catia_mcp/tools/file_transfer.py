@@ -78,18 +78,25 @@ class FileTransferTools:
         return resolved
 
     @staticmethod
-    def _sha256(path: Path) -> str:
-        digest = hashlib.sha256()
+    def _snapshot(path: Path) -> bytes:
         with path.open("rb") as stream:
-            for block in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(block)
-        return digest.hexdigest()
+            before = os.fstat(stream.fileno())
+            content = stream.read(MAX_FILE_BYTES + 1)
+            after = os.fstat(stream.fileno())
+        if len(content) > MAX_FILE_BYTES:
+            raise ValueError("File exceeds the 256 MiB transfer limit")
+        if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+            after.st_size, after.st_mtime_ns, after.st_ctime_ns
+        ) or len(content) != after.st_size:
+            raise ValueError("File changed during transfer")
+        return content
 
     def execute(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         try:
             path = self._file(arguments["file_path"])
-            size = path.stat().st_size
-            sha = self._sha256(path)
+            content = self._snapshot(path)
+            size = len(content)
+            sha = hashlib.sha256(content).hexdigest()
             common = {
                 "file_name": path.name, "size_bytes": size, "sha256": sha,
                 "chunk_size_bytes": CHUNK_BYTES,
@@ -103,11 +110,7 @@ class FileTransferTools:
                 index = arguments.get("chunk_index", 0)
                 if index < 0 or index >= common["total_chunks"]:
                     raise ValueError("chunk_index out of range")
-                with path.open("rb") as stream:
-                    stream.seek(index * CHUNK_BYTES)
-                    raw = stream.read(CHUNK_BYTES)
-                if self._sha256(path) != sha:
-                    raise ValueError("File changed during transfer")
+                raw = content[index * CHUNK_BYTES:(index + 1) * CHUNK_BYTES]
                 data = {
                     **common, "chunk_index": index,
                     "content_base64": base64.b64encode(raw).decode("ascii"),
