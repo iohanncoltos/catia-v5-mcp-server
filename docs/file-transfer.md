@@ -1,5 +1,50 @@
 # Secure CATIA file transfer (experimental)
 
+## Download bridge and ChatGPT limitations
+
+`catia-mcp-download` is a real MCP HTTP client that writes a binary artifact on
+the client computer. It checks every chunk, the total size and the final SHA-256,
+cleans up failed downloads, and refuses to replace an existing destination.
+The destination directory must already exist. File names returned by the server
+are never used as destination paths.
+
+```powershell
+python -m pip install -e .
+$env:CATIA_MCP_DOWNLOAD_TOKEN = '<existing server bearer token>'
+python -m catia_mcp.download --url http://127.0.0.1:8000/mcp --file C:\CATIA-Exports\part.CATPart --output C:\ChatArtifacts\part.CATPart
+```
+
+Use the actual URL/port printed by your server. For remote connections use the
+authenticated HTTPS endpoint; the bridge does not create a public file server.
+Set the token in the bridge process environment, never in chat or command arguments.
+
+In a desktop Work/Codex session with filesystem access, the agent can run this
+bridge into its session's outputs directory and provide the resulting local file
+through the host's file delivery UI. This is a local artifact link, not proof that
+the file was uploaded to a cloud ChatGPT conversation. If the host cannot run the
+bridge or publish local files, manual upload or a separate supported integration
+is still necessary. Binary CAD previews/analysis are client dependent.
+
+The official plugin reference documents optional widget file helpers, but does
+not establish that arbitrary base64 MCP tool results become attachments:
+https://developers.openai.com/plugins/reference#file-apis
+The `openaiFileResponse` mechanism belongs to GPT Actions, a different transport:
+https://developers.openai.com/api/docs/actions/sending-files
+Adding that property to an MCP result does not establish compatibility. No
+automatic cloud attachment support is claimed or tested by this implementation.
+
+After pulling/merging this change, reinstall with `python -m pip install -e .`
+in the server's Python environment. Set `CATIA_MCP_TRANSFER_DIR` in the environment
+of the actual server process (a service needs service configuration, not just a
+new terminal variable). Restart that MCP process, then refresh/reconnect the
+ChatGPT connector so cached tool definitions and server instructions refresh.
+CATIA itself does not need restarting for file transfer. Existing running
+servers do not load changed Python code automatically.
+
+Keep `Racord_Curbat_Flanse_69_WIP.CATPart` explicitly marked as incomplete.
+To transfer it, copy it into the dedicated transfer directory without renaming
+it as final. Successful transfer verifies bytes, not drawing compliance.
+
 The tools `catia_get_file_info` and `catia_download_file` return metadata and
 base64 chunks for files that already exist on the CATIA Windows computer.
 

@@ -101,6 +101,8 @@ class FileTransferTools:
                 "file_name": path.name, "size_bytes": size, "sha256": sha,
                 "chunk_size_bytes": CHUNK_BYTES,
                 "total_chunks": max(1, (size + CHUNK_BYTES - 1) // CHUNK_BYTES),
+                "attachment_created": False,
+                "delivery": "client_reassembly_required",
             }
             if tool_name == "catia_get_file_info":
                 data = common

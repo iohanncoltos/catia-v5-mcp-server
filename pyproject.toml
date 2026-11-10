@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 catia-mcp = "catia_mcp.server:main"
+catia-mcp-download = "catia_mcp.download:main"
 
 [tool.setuptools.packages.find]
 include = ["catia_mcp*"]

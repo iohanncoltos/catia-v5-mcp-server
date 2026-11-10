@@ -73,7 +73,12 @@ def failure(
 
 class CATIAMCPServer:
     def __init__(self) -> None:
-        self.server = Server("catia-v5-mcp")
+        self.server = Server("catia-v5-mcp", instructions=(
+            "File transfer tools return base64 chunks, not chat attachments. "
+            "Use catia-mcp-download in a host with filesystem access to reconstruct "
+            "and verify an artifact, then publish it using that host's file integration. "
+            "Never claim a WIP file is a completed design or invent a download URL."
+        ))
         self.connection = CATIAConnection()
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="catia-sta")
         self.document_tools = DocumentTools(self.connection)
