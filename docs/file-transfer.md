@@ -34,3 +34,8 @@ integration must reconstruct the binary and attach it. Large files can
 exceed MCP message and context limits; for production downloads, prefer a
 short-lived authenticated streaming endpoint implemented by a trusted bridge.
 Do not paste base64 into the chat transcript.
+
+Each call reads a bounded in-memory snapshot so the returned hash and chunk
+refer to the same bytes. Budget up to 256 MiB of memory per call. The transfer
+directory and its parent directories must be writable only by trusted local
+users; this is not a sandbox against local users replacing files or links.
