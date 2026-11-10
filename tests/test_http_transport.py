@@ -22,8 +22,28 @@ except ImportError:  # pragma: no cover - older SDKs
 
 from catia_mcp.http_transport import build_app, check_bind, is_loopback
 from catia_mcp.server import CATIAMCPServer, parse_args
+from catia_mcp.download import download
 
 TOKEN = "test-token-0123456789abcdef"
+
+
+def test_download_over_authenticated_http(tmp_path, monkeypatch):
+    source = tmp_path / "source.CATPart"
+    source.write_bytes(b"CAD binary\x00" * 20000)
+    monkeypatch.setenv("CATIA_MCP_TRANSFER_DIR", str(tmp_path))
+    output = tmp_path / "download.CATPart"
+
+    async def body(url, _):
+        from mcp.client.streamable_http import streamablehttp_client
+        async with streamablehttp_client(url, headers={
+            "Authorization": f"Bearer {TOKEN}"
+        }) as (reader, writer, _):
+            async with ClientSession(reader, writer) as session:
+                await session.initialize()
+                await download(session, str(source), output)
+
+    asyncio.run(_with_server(TOKEN, body))
+    assert output.read_bytes() == source.read_bytes()
 
 
 def free_port() -> int:
